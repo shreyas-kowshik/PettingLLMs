@@ -41,7 +41,7 @@ python3 -m pettingllms.trainer.train \
     training.experiment_name=math_1.7B_L3_fresh \
     training.total_training_steps=200 \
     training.epoch_size=20 \
-    training.train_batch_size=4 \
+    training.train_batch_size=2 \
     training.train_sample_num=2 \
     training.validate_sample_num=2 \
     training.max_prompt_length=512 \
