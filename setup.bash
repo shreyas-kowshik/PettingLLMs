@@ -195,7 +195,7 @@ main() {
     init_submodules
     upgrade_pip
     install_pytorch
-    install_flash_attn
+    # install_flash_attn
     install_requirements
     pip install -e .
     print_completion

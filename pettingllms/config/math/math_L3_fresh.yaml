@@ -1,16 +1,17 @@
-
 defaults:
   - ../ppo_trainer@models.model_0.ppo_trainer_config: eval
+  - ../ppo_trainer@models.model_1.ppo_trainer_config: eval
   - _self_
 
 
-specialization: "lora" # prompt, lora, full
-lora_rank: 16
-lora_alpha: 32
+specialization: "full"  # Must be "full" for L3 (independent models)
 resource:
   nnodes: 1
-  n_gpus_per_node: 2
+  n_gpus_per_node: 2  # Using 2 GPUs for 2 models
   trust_remote_code: true
+
+lora_rank: 16  # Not used in full model mode, but kept for compatibility
+lora_alpha: 32
 
 # Environment configuration (shared by all agents)
 env:
@@ -23,54 +24,54 @@ env:
   batched_init: true
 
 
-
+# Define TWO independent base models for L3
 base_models:
   policy_0:
-    path: "your base model path"
-    name: "reasoning_generator_model"
+    path: "Qwen/Qwen3-1.7B"
+    name: "reasoning_generator_model"  # Model for reasoning agent
   policy_1:
-    path: "your base model path"
-    name: "tool_generator_model"
-  
- 
+    path: "Qwen/Qwen3-1.7B"  # Can use same or different model
+    name: "tool_generator_model"  # Model for tool agent
 
-# Multi-agent configuration for two policies
+
+# Multi-agent configuration - each agent maps to DIFFERENT model
 agent_policy_configs:
-  # Number of agents to train
   num_agents: 2
   policy_list: ["reasoning_generator", "tool_generator"]
   agent_configs:
     agent_0:
       name: "reasoning_generator"
-      policy_name: "reasoning_generator_model"
-
+      policy_name: "reasoning_generator_model"  # Maps to policy_0
+      enable_thinking: false
+      train_temperature: 1.0
+      val_temperature: 0.6
       
     agent_1:
       name: "tool_generator"
-      policy_name: "reasoning_generator_model"
+      policy_name: "tool_generator_model"  # Maps to policy_1 (DIFFERENT from agent_0)
+      enable_thinking: false
+      train_temperature: 1.0
+      val_temperature: 0.6
 
 
 # Multi-agent interaction configuration
 multi_agent_interaction:
-  
-  # Turn order for agents (list of agent names)
   turn_order: ["tool_generator", "reasoning_generator"]
-  
-  # Number of agents that interact per episode
   num_interacting_agents: 2
-      
 
 
-
+# Training configuration
 training:
   device: cuda
   total_training_steps: 200
   project_name: pettingllms
-  experiment_name: math_eval_single_policy
-  logger: [ 'console', 'wandb' ]
+  experiment_name: math_1.7B_L3_fresh
+  logger: ['console', 'wandb']
   model_checkpoints_dir: checkpoints
+  checkpoint_dir: ${training.model_checkpoints_dir}
+  save_freq: 40
   ray_wait_register_center_timeout: 300
-  num_workers: 16
+  num_workers: 150  # Reduced from default 1800 to prevent resource exhaustion
   train_batch_size: 4
   train_sample_num: 2
   validate_sample_num: 2
@@ -83,11 +84,15 @@ training:
   lora_rank: ${lora_rank}
   lora_alpha: ${lora_alpha}
 
+
+# Model configurations - MUST define both model_0 and model_1 for L3
 models:
+  # First model for reasoning_generator
   model_0:
     path: ${base_models.policy_0.path}
     name: ${base_models.policy_0.name}
     ppo_trainer_config:
+      checkpoint_dir: ${training.model_checkpoints_dir}
       filter_method: mean
       filter_ratio: 0.5
       data: 
@@ -100,14 +105,17 @@ models:
           temperature: ${training.sample_temperature}
           prompt_length: ${training.max_prompt_length}
           response_length: ${training.max_response_length}
-          tensor_model_parallel_size: ${resource.n_gpus_per_node}
+          tensor_model_parallel_size: 1  # 1 GPU per model (2 GPUs / 2 models)
         trainer:
-          n_gpus_per_node: ${resource.n_gpus_per_node}
-          n_training_gpus_per_node: ${resource.n_gpus_per_node}
+          n_gpus_per_node: 1  # Each model gets 1 GPU
+          n_training_gpus_per_node: 1
+
+  # Second model for tool_generator
   model_1:
     path: ${base_models.policy_1.path}
     name: ${base_models.policy_1.name}
     ppo_trainer_config:
+      checkpoint_dir: ${training.model_checkpoints_dir}
       filter_method: mean
       filter_ratio: 0.5
       data: 
@@ -115,12 +123,13 @@ models:
         max_response_length: ${training.max_response_length}
       actor_rollout_ref:
         model:
-          path: ${base_models.policy_0.path}
+          path: ${base_models.policy_1.path}
         rollout:
           temperature: ${training.sample_temperature}
           prompt_length: ${training.max_prompt_length}
           response_length: ${training.max_response_length}
-          tensor_model_parallel_size: ${resource.n_gpus_per_node}
+          tensor_model_parallel_size: 1  # 1 GPU per model
         trainer:
-          n_gpus_per_node: ${resource.n_gpus_per_node}
-          n_training_gpus_per_node: ${resource.n_gpus_per_node}
+          n_gpus_per_node: 1  # Each model gets 1 GPU
+          n_training_gpus_per_node: 1
+

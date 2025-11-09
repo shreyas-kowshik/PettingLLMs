@@ -7,7 +7,7 @@ defaults:
 specialization: "prompt" # prompt, lora, full
 resource:
   nnodes: 1
-  n_gpus_per_node: 8
+  n_gpus_per_node: 2
   trust_remote_code: true
 lora_rank: 16
 lora_alpha: 32
@@ -72,8 +72,9 @@ training:
   logger: [ 'console', 'wandb' ]
   model_checkpoints_dir: checkpoints
   ray_wait_register_center_timeout: 300
-  train_batch_size: 32
-  train_sample_num: 8
+  num_workers: 32
+  train_batch_size: 4
+  train_sample_num: 2
   validate_sample_num: 5
   sample_temperature: 1
   val_freq: 10
