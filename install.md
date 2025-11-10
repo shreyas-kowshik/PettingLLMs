@@ -27,3 +27,8 @@ L3
 bash scripts/train/math/math_L3_fresh.sh
 ```
 
+Example generation setup
+```
+bash scripts/train/code/code_L3_example.sh
+```
+

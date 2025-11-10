@@ -43,6 +43,8 @@ AGENT_CLASSES = {
     # Aliases aligned with config.multi_agent_interaction.turn_order values
     "code_generator": safe_import("pettingllms.multi_agent_env.code.agents.code_agent", "CodeGenerationAgent"),
     "test_generator": safe_import("pettingllms.multi_agent_env.code.agents.unit_test_agent", "UnitTestGenerationAgent"),
+    "example_generator": safe_import("pettingllms.multi_agent_env.code.agents.example_agent", "ExampleGenerationAgent"),
+    "code_with_example": safe_import("pettingllms.multi_agent_env.code.agents.code_with_example_agent", "CodeWithExampleAgent"),
     "code_generator_single_agent": safe_import("pettingllms.multi_agent_env.code_single_agent.agents.code_agent", "CodeGenerationAgent"),
     "reasoning_generator": safe_import("pettingllms.multi_agent_env.math.agents.reasoning_agent", "ReasoningAgent"),
     "tool_generator": safe_import("pettingllms.multi_agent_env.math.agents.tool_agent", "ToolAgent"),
