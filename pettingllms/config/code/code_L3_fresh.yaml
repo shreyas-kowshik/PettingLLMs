@@ -1,0 +1,134 @@
+defaults:
+  - ../ppo_trainer@models.model_0.ppo_trainer_config: eval
+  - ../ppo_trainer@models.model_1.ppo_trainer_config: eval
+  - _self_
+
+
+specialization: "full"  # Must be "full" for L3 (independent models)
+resource:
+  nnodes: 1
+  n_gpus_per_node: 2  # Using 2 GPUs for 2 models
+  trust_remote_code: true
+
+lora_rank: 16  # Not used in full model mode, but kept for compatibility
+lora_alpha: 32
+
+# Environment configuration (shared by all agents)
+env:
+  name: code_env
+  dataset: "code_contests"
+  benchmark: "code_contests"
+  max_turns: 5
+  resolve: false
+  multi_modal: false
+  batched_init: true
+
+
+# Define TWO independent base models for L3
+base_models:
+  policy_0:
+    path: "Qwen/Qwen3-1.7B"
+    name: "code_generator_model"  # Model for code generator agent
+  policy_1:
+    path: "Qwen/Qwen3-1.7B"  # Can use same or different model
+    name: "test_generator_model"  # Model for test generator agent
+
+
+# Multi-agent configuration - each agent maps to DIFFERENT model
+agent_policy_configs:
+  num_agents: 2
+  policy_list: ["code_generator", "test_generator"]
+  agent_configs:
+    agent_0:
+      name: "code_generator"
+      policy_name: "code_generator_model"  # Must match base_models.policy_0.name
+      enable_thinking: false
+      train_temperature: 1.0
+      val_temperature: 0.6
+      
+    agent_1:
+      name: "test_generator"
+      policy_name: "test_generator_model"  # Must match base_models.policy_1.name
+      enable_thinking: false
+      train_temperature: 1.0
+      val_temperature: 0.6
+
+
+# Multi-agent interaction configuration
+multi_agent_interaction:
+  turn_order: ["test_generator", "code_generator"]
+  num_interacting_agents: 2
+
+
+# Training configuration
+training:
+  device: cuda
+  total_training_steps: 200
+  project_name: pettingllms
+  experiment_name: code_1.7B_L3_fresh
+  logger: ['console', 'wandb']
+  model_checkpoints_dir: checkpoints
+  checkpoint_dir: ${training.model_checkpoints_dir}
+  save_freq: 40
+  ray_wait_register_center_timeout: 300
+  num_workers: 150  # Reduced from default 1800 to prevent resource exhaustion
+  train_batch_size: 4
+  train_sample_num: 2
+  validate_sample_num: 2
+  sample_temperature: 1
+  val_freq: 10
+  resample_freq: 3
+  epoch_size: 20
+  max_prompt_length: 512
+  max_response_length: 512
+  lora_rank: ${lora_rank}
+  lora_alpha: ${lora_alpha}
+
+# Model configurations - MUST define both model_0 and model_1 for L3
+models:
+  # First model for code_generator
+  model_0:
+    path: ${base_models.policy_0.path}
+    name: ${base_models.policy_0.name}  # Will be "code_generator_model"
+    ppo_trainer_config:
+      checkpoint_dir: ${training.model_checkpoints_dir}
+      filter_method: mean
+      filter_ratio: 0.5
+      data: 
+        max_prompt_length: ${training.max_prompt_length}
+        max_response_length: ${training.max_response_length}
+      actor_rollout_ref:
+        model:
+          path: ${base_models.policy_0.path}
+        rollout:
+          temperature: ${training.sample_temperature}
+          prompt_length: ${training.max_prompt_length}
+          response_length: ${training.max_response_length}
+          tensor_model_parallel_size: 1  # 1 GPU per model (2 GPUs / 2 models)
+        trainer:
+          n_gpus_per_node: 1  # Each model gets 1 GPU
+          n_training_gpus_per_node: 1
+
+  # Second model for test_generator
+  model_1:
+    path: ${base_models.policy_1.path}
+    name: ${base_models.policy_1.name}  # Will be "test_generator_model"
+    ppo_trainer_config:
+      checkpoint_dir: ${training.model_checkpoints_dir}
+      filter_method: mean
+      filter_ratio: 0.5
+      data: 
+        max_prompt_length: ${training.max_prompt_length}
+        max_response_length: ${training.max_response_length}
+      actor_rollout_ref:
+        model:
+          path: ${base_models.policy_1.path}
+        rollout:
+          temperature: ${training.sample_temperature}
+          prompt_length: ${training.max_prompt_length}
+          response_length: ${training.max_response_length}
+          tensor_model_parallel_size: 1  # 1 GPU per model
+        trainer:
+          n_gpus_per_node: 1  # Each model gets 1 GPU
+          n_training_gpus_per_node: 1
+

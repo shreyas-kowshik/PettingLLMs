@@ -93,13 +93,22 @@ class CodeEnv(Env):
 
 class CodeEnvBatch:
     def __init__(self, env_idx_list: List[int], env_indices: List[int], rollout_idx_list: List[int], samples: int, max_turns: int, config: dict, mode="train", *, env_workers: List=None):
+        # if mode=="train":
+        #     self.problem_list=load_problem_batch(env_indices,benchmark_name="train",mode="train",difficulty=getattr(config.env,"difficulty") if hasattr(config,"env") and hasattr(config.env,"difficulty") else "difficult")
+        # else:
+        #     benchmark_name=getattr(config.env,"benchmark") if hasattr(config,"env") and hasattr(config.env,"benchmark") else "test"
+        #     #difficulty=getattr(config,"difficulty") if hasattr(config,"difficulty") else "difficult"
+        #     self.problem_list=load_problem_batch(env_indices,mode=mode,benchmark_name=benchmark_name)
         if mode=="train":
-            self.problem_list=load_problem_batch(env_indices,benchmark_name="train",mode="train",difficulty=getattr(config.env,"difficulty") if hasattr(config,"env") and hasattr(config.env,"difficulty") else "difficult")
+            # Get dataset_name from config (e.g., "code_contests", "apps")
+            dataset_name = getattr(config.env, "dataset", "apps") if hasattr(config, "env") and hasattr(config.env, "dataset") else "apps"
+            self.problem_list = load_problem_batch(env_indices, dataset_name=dataset_name, mode="train")
         else:
-            benchmark_name=getattr(config.env,"benchmark") if hasattr(config,"env") and hasattr(config.env,"benchmark") else "test"
-            #difficulty=getattr(config,"difficulty") if hasattr(config,"difficulty") else "difficult"
-            self.problem_list=load_problem_batch(env_indices,mode=mode,benchmark_name=benchmark_name)
+            # Get benchmark_name from config for validation mode
+            benchmark_name = getattr(config.env, "benchmark", "livecodebench") if hasattr(config, "env") and hasattr(config.env, "benchmark") else "livecodebench"
+            self.problem_list = load_problem_batch(env_indices, benchmark_name=benchmark_name, mode=mode)
             samples=1
+        
         self.env_list=[]
         if mode=="validate":
             rollout_idx_list=range(len(self.problem_list)*samples)
