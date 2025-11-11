@@ -13,6 +13,7 @@ export VLLM_ENGINE_ITERATION_TIMEOUT_S=100000000000
 export HYDRA_FULL_ERROR=1
 export NCCL_IB_DISABLE=1
 export NCCL_NET_GDR_LEVEL=0
+export WANDB_API_KEY="19dc57e0b460eccee9fa05d621e17413df4f7f2f"
 
 # CUDA paths (adjust if needed)
 export CUDA_HOME=${CUDA_HOME:-/usr/local/cuda}
@@ -24,11 +25,11 @@ GPU_num=2
 
 # Model 0 resource configuration (for reasoning_generator_model)
 model_0_config_path="models.model_0.ppo_trainer_config"
-model_0_resource="resource.n_gpus_per_node=$GPU_num $model_0_config_path.trainer.n_gpus_per_node=1 $model_0_config_path.trainer.nnodes=1 $model_0_config_path.actor_rollout_ref.rollout.tensor_model_parallel_size=1"
+model_0_resource="resource.n_gpus_per_node=$GPU_num $model_0_config_path.trainer.n_gpus_per_node=1 $model_0_config_path.trainer.nnodes=1 $model_0_config_path.trainer.device=cuda:0 $model_0_config_path.actor_rollout_ref.rollout.tensor_model_parallel_size=1"
 
 # Model 1 resource configuration (for tool_generator_model)
 model_1_config_path="models.model_1.ppo_trainer_config"
-model_1_resource="$model_1_config_path.trainer.n_gpus_per_node=1 $model_1_config_path.trainer.nnodes=1 $model_1_config_path.actor_rollout_ref.rollout.tensor_model_parallel_size=1"
+model_1_resource="$model_1_config_path.trainer.n_gpus_per_node=1 $model_1_config_path.trainer.nnodes=1 $model_1_config_path.trainer.device=cuda:1 $model_1_config_path.actor_rollout_ref.rollout.tensor_model_parallel_size=1"
 
 # Run training with L3 configuration
 python3 -m pettingllms.trainer.train \
@@ -44,11 +45,11 @@ python3 -m pettingllms.trainer.train \
     training.train_batch_size=2 \
     training.train_sample_num=2 \
     training.validate_sample_num=2 \
-    training.max_prompt_length=512 \
-    training.max_response_length=512 \
+    training.max_prompt_length=400 \
+    training.max_response_length=400 \
     training.val_freq=10 \
     training.resample_freq=3 \
-    training.num_workers=150 \
+    training.num_workers=120 \
     env.dataset=polaris \
     env.benchmark=AIME24
 

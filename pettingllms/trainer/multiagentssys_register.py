@@ -56,6 +56,8 @@ AGENT_CLASSES = {
     # Stateful agents
     "plan_agent": safe_import("pettingllms.multi_agent_env.stateful.agents.plan_agent", "PlanAgent"),
     "tool_call_agent": safe_import("pettingllms.multi_agent_env.stateful.agents.tool_agent", "ToolAgent"),
+    "example_generator_agent": safe_import("pettingllms.multi_agent_env.code.agents.example_generator_agent", "ExampleGeneratorAgent"),
+    "code_generator_agent": safe_import("pettingllms.multi_agent_env.code.agents.code_generator_agent", "CodeGeneratorAgent"),
 }
 
 ENV_WORKER_CLASSES = {

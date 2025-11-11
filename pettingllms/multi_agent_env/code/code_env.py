@@ -43,6 +43,10 @@ class CodeEnvState:
     generated_test_vs_golden_code_mismatch_cases: List[Dict]=None
     generated_test_vs_golden_code_match_ratio: float=0
 
+    generated_example: str=None
+    example_quality_reward: float=0.0
+    code_conditioned_on_example: bool=False
+
 class CodeEnv(Env):
     """
     Environment for code generation and testing tasks with dual-agent interaction.
@@ -89,14 +93,19 @@ class CodeEnv(Env):
         self.state.generated_test_vs_golden_code_match_cases=None
         self.state.generated_test_vs_golden_code_mismatch_cases=None
         self.state.generated_test_vs_golden_code_match_ratio=0
+        self.state.generated_example=None
+        self.state.example_quality_reward=0.0
+        self.state.code_conditioned_on_example=False
 
 
 class CodeEnvBatch:
     def __init__(self, env_idx_list: List[int], env_indices: List[int], rollout_idx_list: List[int], samples: int, max_turns: int, config: dict, mode="train", *, env_workers: List=None):
         if mode=="train":
-            self.problem_list=load_problem_batch(env_indices,benchmark_name="train",mode="train",difficulty=getattr(config.env,"difficulty") if hasattr(config,"env") and hasattr(config.env,"difficulty") else "difficult")
+            # self.problem_list=load_problem_batch(env_indices,benchmark_name="train",mode="train",difficulty=getattr(config.env,"difficulty") if hasattr(config,"env") and hasattr(config.env,"difficulty") else "difficult")
+            dataset_name=getattr(config.env,"dataset") if hasattr(config,"env") and hasattr(config.env,"dataset") else "code_contests"
+            self.problem_list=load_problem_batch(env_indices,mode=mode,dataset_name=dataset_name)
         else:
-            benchmark_name=getattr(config.env,"benchmark") if hasattr(config,"env") and hasattr(config.env,"benchmark") else "test"
+            benchmark_name=getattr(config.env,"benchmark") if hasattr(config,"env") and hasattr(config.env,"benchmark") else "livecodebench"
             #difficulty=getattr(config,"difficulty") if hasattr(config,"difficulty") else "difficult"
             self.problem_list=load_problem_batch(env_indices,mode=mode,benchmark_name=benchmark_name)
             samples=1

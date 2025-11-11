@@ -135,7 +135,7 @@ actor_rollout_ref:
     response_length: ${data.max_response_length}
     # for vllm rollout
     dtype: bfloat16
-    gpu_memory_utilization: 0.6  
+    gpu_memory_utilization: 0.7  
     ignore_eos: False
     enforce_eager: False  
     free_cache_engine: False
