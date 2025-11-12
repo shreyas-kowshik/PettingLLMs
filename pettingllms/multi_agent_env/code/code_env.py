@@ -44,7 +44,6 @@ class CodeEnvState:
     generated_test_vs_golden_code_match_ratio: float=0
 
     generated_example: str=None
-    example_quality_reward: float=0.0
     code_conditioned_on_example: bool=False
 
 class CodeEnv(Env):
@@ -94,7 +93,6 @@ class CodeEnv(Env):
         self.state.generated_test_vs_golden_code_mismatch_cases=None
         self.state.generated_test_vs_golden_code_match_ratio=0
         self.state.generated_example=None
-        self.state.example_quality_reward=0.0
         self.state.code_conditioned_on_example=False
 
 

@@ -62,5 +62,11 @@ class ExampleGeneratorAgent(Agent):
     
     def calculate_reward(self, env_data: Env):
         # TODO: implement llm-as-judge evaluation to check if the example doesnt give code directly
-        self.agent_reward = getattr(env_data.state, "example_quality_reward", 0.0)
+        passed_ratio = getattr(env_data.state, "ground_truth_test_vs_generated_code_match_ratio", 0.0)
+        condition_on_example = getattr(env_data.state, "code_conditioned_on_example", False)
+
+        if condition_on_example:
+            self.agent_reward = passed_ratio
+        else:
+            self.agent_reward = 0.0
         self.reward_history.append(self.agent_reward)

@@ -116,6 +116,7 @@ class CodeGeneratorAgent(Agent):
                 self.success = False
         else:
             self.success = False
+            env_data.state.ground_truth_test_vs_generated_code_match_ratio = 0.0
     
     def calculate_reward(self, env_data: Env):
         passed_ratio = getattr(env_data.state, "ground_truth_test_vs_generated_code_match_ratio", 0.0)
@@ -123,8 +124,6 @@ class CodeGeneratorAgent(Agent):
 
         if condition_on_example:
             self.agent_reward = passed_ratio
-            env_data.state.example_quality_reward = passed_ratio
         else:
             self.agent_reward = 0.0
-            env_data.state.example_quality_reward = 0.0
         self.reward_history.append(self.agent_reward)
