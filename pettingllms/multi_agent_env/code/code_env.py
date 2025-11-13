@@ -47,6 +47,7 @@ class CodeEnvState:
     code_used_example: bool=False  # Whether code agent conditioned on example
     raw_test_pass_ratio: float=0.0  # Raw test pass ratio before conditioning penalty
     example_agent_reward: float=0.0  # Reward for example agent (same as code agent)
+    example_agent_success: bool=False  # Success status for example agent (same as code agent)
 
 class CodeEnv(Env):
     """
@@ -99,6 +100,7 @@ class CodeEnv(Env):
         self.state.code_used_example=False
         self.state.raw_test_pass_ratio=0.0
         self.state.example_agent_reward=0.0
+        self.state.example_agent_success=False
 
 
 class CodeEnvBatch:

@@ -43,6 +43,11 @@ export CUDA_HOME=${CUDA_HOME:-/usr/local/cuda}
 export LD_LIBRARY_PATH=$CUDA_HOME/targets/x86_64-linux/lib:${LD_LIBRARY_PATH}
 export LD_LIBRARY_PATH=$CUDA_HOME/lib64:${LD_LIBRARY_PATH}
 
+# WANDB #
+WANDB_ENTITY=Deep-RL-10703
+WANDB_PROJECT=deeprl_project
+WANDB_EXPERIMENT_NAME=debug-overfit-v1
+
 # ============================================================================
 # GPU Configuration
 # ============================================================================
@@ -82,18 +87,18 @@ python3 -m pettingllms.trainer.train \
     base_models.policy_0.path=shashwatsaxena136/apps-finetuning-87 \
     base_models.policy_1.path=Qwen/Qwen3-1.7B \
     training.experiment_name=code_1.7B_L3_example \
-    training.total_training_steps=200 \
-    training.epoch_size=20 \
-    training.train_batch_size=2 \
+    training.total_training_steps=2000 \
+    training.epoch_size=1 \
+    training.train_batch_size=1 \
     training.val_batch_size=1 \
     training.train_sample_num=4 \
     training.validate_sample_num=1 \
     training.max_prompt_length=2048 \
     training.max_response_length=1024 \
     training.val_freq=10 \
-    training.resample_freq=3 \
+    training.resample_freq=1 \
     training.num_workers=100 \
-    env.dataset=apps \
-    env.benchmark=sub_apps_with_examples \
+    env.dataset=apps_debug_overfit \
+    env.benchmark=apps_debug_overfit \
     env.max_turns=1 2>&1 | tee logs/code_1.7B_L3_example/code_L3_example.log
 

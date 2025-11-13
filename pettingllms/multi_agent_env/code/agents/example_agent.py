@@ -56,7 +56,24 @@ class ExampleGenerationAgent(Agent):
         state = getattr(env_data, "state", None)
         problem = getattr(state, "problem", None)
         
-        # Create prompt using the specified template
+        #         # Create prompt using the specified template
+        #         formatted_prompt = f"""Given the following problem statement:
+        # {problem}
+
+        # Generate a clear and complete solved example for this problem.
+        # 	•	Do not write any code.
+        # 	•	Choose simple toy values to illustrate the process.
+        # 	•	Show the step-by-step reasoning used to solve the example.
+        # 	•	Clearly present the initial input, intermediate steps, and final output.
+        # 	•	Format the solution neatly using bullet points or equations where appropriate.
+
+        # Structure your response with the following sections:
+        # 	1.	Problem Recap
+        # 	2.	Example Input
+        # 	3.	Step-by-Step Solution
+        # 	4.	Final Answer
+        # """
+
         formatted_prompt = f"""Given the following problem statement:
 {problem}
 
@@ -71,9 +88,13 @@ Structure your response with the following sections:
 	1.	Problem Recap
 	2.	Example Input
 	3.	Step-by-Step Solution
-	4.	Final Answer
+	4.	Final Answer"
+ 
+Example:
 """
         
+        # print("IN EXAMPLE AGENT UPDATE_FROM_ENV, FORMATTED PROMPT: {}".format(formatted_prompt))
+
         self.current_prompt = {"text": formatted_prompt, "image": None}
 
     def update_from_model(self, response: str):
@@ -83,6 +104,8 @@ Structure your response with the following sections:
         The example is just stored as-is (raw text).
         """
         # Store the entire response as the example
+        # print("IN EXAMPLE AGENT UPDATE_FROM_MODEL, RESPONSE: {}".format(response))
+
         self.current_action = response.strip()
         return self.current_action
 
@@ -102,7 +125,8 @@ Structure your response with the following sections:
         
         # This agent has no intrinsic success criterion
         # Success is determined by the downstream code agent
-        self.success = False
+        # Will be updated after code agent completes
+        self.success = False  # Default, will be set by calculate_reward()
 
     def calculate_reward(self, env_data: Env):
         """
@@ -118,10 +142,29 @@ Structure your response with the following sections:
         # This is handled in the code agent's calculate_reward method
         
         # For now, initialize to 0 - will be updated later
-        if not hasattr(env_data.state, "example_agent_reward"):
+        # if not hasattr(env_data.state, "example_agent_reward"):
+        #     raise ValueError("Example agent reward not set")
+        # else:
+        #     self.agent_reward = env_data.state.example_agent_reward
+
+        # Rewards are calculated in turn_order, so this agent will be called first
+        # Get information from env state to get reward
+        used_example = getattr(env_data.state, "code_used_example", False)
+        raw_test_pass_ratio = getattr(env_data.state, "raw_test_pass_ratio", 0.0)
+        
+        # Read shared success status from environment state
+        # This ensures both agents have the same success rate
+        if hasattr(env_data.state, "example_agent_success"):
+            self.success = env_data.state.example_agent_success
+        else:
+            self.success = False  # Fallback if not set yet
+        
+        if not used_example:
             self.agent_reward = 0.0
         else:
-            self.agent_reward = env_data.state.example_agent_reward
+            self.agent_reward = raw_test_pass_ratio
+        
+        print(f"Example agent reward: {self.agent_reward}")
         
         self.reward_history.append(self.agent_reward)
 

@@ -35,7 +35,7 @@ data:
 actor_rollout_ref:
   hybrid_engine: True
   model:
-    path: Qwen/Qwen3-4B # Set to null to allow overriding
+    path: null # Set to null to allow overriding
     use_shm: False
     external_lib: null
     override_config: { }

@@ -84,6 +84,7 @@ training:
   num_workers: 100  # Number of Ray docker workers for code execution
   train_batch_size: 4
   train_sample_num: 2  # Number of samples per problem
+  val_batch_size: 4
   validate_sample_num: 2
   sample_temperature: 1
   val_freq: 10
@@ -102,7 +103,7 @@ models:
     name: ${base_models.policy_0.name}
     ppo_trainer_config:
       filter_method: mean
-      filter_ratio: 0.5
+      filter_ratio: 0.0 # Filters samples with reward below this
       data:
         max_prompt_length: ${training.max_prompt_length}
         max_response_length: ${training.max_response_length}
@@ -123,7 +124,7 @@ models:
     name: ${base_models.policy_1.name}
     ppo_trainer_config:
       filter_method: mean
-      filter_ratio: 0.5
+      filter_ratio: 0.0 # Filters samples with reward below this 
       data:
         max_prompt_length: ${training.max_prompt_length}
         max_response_length: ${training.max_response_length}

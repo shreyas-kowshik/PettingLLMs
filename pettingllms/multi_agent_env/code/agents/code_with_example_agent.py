@@ -128,6 +128,8 @@ Respond in the format:
         
         # Log which strategy was chosen
         logger.info(f"Rollout {self.rollout_idx}: {'USED' if self.used_example else 'DID NOT USE'} example")
+        # print("IN USED EXAMPLE STUB, USED EXAMPLE: {}".format(self.used_example))
+        # print("FORMATTED PROMPT: {}".format(formatted_prompt))
         
         self.current_prompt = {"text": formatted_prompt, "image": None}
 
@@ -144,6 +146,7 @@ Respond in the format:
             code = matches[-1].strip()
         else:
             code = "# Could not extract code from output"
+        # print("IN CODE WITH EXAMPLE AGENT UPDATE_FROM_MODEL, CODE: {}".format(code))
         
         self.current_action = code
         return self.current_action
@@ -188,6 +191,9 @@ Respond in the format:
                 env_data.done = True
             else:
                 self.success = False
+            
+            # Share success status with example agent
+            env_data.state.example_agent_success = self.success
         
         # Store the raw test pass ratio (before applying conditioning penalty)
         env_data.state.raw_test_pass_ratio = passed_ratio
@@ -195,30 +201,18 @@ Respond in the format:
         logger.info(f"Rollout {self.rollout_idx}: Test pass ratio = {passed_ratio:.2f}, Used example = {self.used_example}")
 
     def calculate_reward(self, env_data: Env):
-        """
-        Calculate reward based on conditioning strategy.
-        
-        Reward Structure:
-        - If used example: reward = 0 (for BOTH agents)
-        - If did NOT use example: reward = test pass ratio (for BOTH agents)
-        
-        This creates an incentive to solve problems independently.
-        """
         raw_test_pass_ratio = getattr(env_data.state, "raw_test_pass_ratio", 0.0)
         used_example = getattr(env_data.state, "code_used_example", False)
         
-        if used_example:
-            # Case 1: Conditioned on example → 0 reward for both agents
+        if not used_example:
             self.agent_reward = 0.0
-            # Also set example agent's reward to 0
-            env_data.state.example_agent_reward = 0.0
-            logger.info(f"Rollout {self.rollout_idx}: Conditioned on example → reward = 0.0")
+            # env_data.state.example_agent_reward = 0.0
+            # logger.info(f"Rollout {self.rollout_idx}: Conditioned on example → reward = 0.0")
         else:
             # Case 2: Did NOT condition on example → test pass ratio for both agents
             self.agent_reward = raw_test_pass_ratio
-            # Also set example agent's reward to same value
-            env_data.state.example_agent_reward = raw_test_pass_ratio
-            logger.info(f"Rollout {self.rollout_idx}: Did not use example → reward = {raw_test_pass_ratio:.2f}")
+            # env_data.state.example_agent_reward = raw_test_pass_ratio
+            # logger.info(f"Rollout {self.rollout_idx}: Did not use example → reward = {raw_test_pass_ratio:.2f}")
         
         self.reward_history.append(self.agent_reward)
 
