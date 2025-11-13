@@ -128,8 +128,8 @@ Respond in the format:
         
         # Log which strategy was chosen
         logger.info(f"Rollout {self.rollout_idx}: {'USED' if self.used_example else 'DID NOT USE'} example")
-        # print("IN USED EXAMPLE STUB, USED EXAMPLE: {}".format(self.used_example))
-        # print("FORMATTED PROMPT: {}".format(formatted_prompt))
+        print("IN USED EXAMPLE STUB, USED EXAMPLE: {}".format(self.used_example))
+        print("FORMATTED PROMPT: {}".format(formatted_prompt))
         
         self.current_prompt = {"text": formatted_prompt, "image": None}
 
@@ -146,7 +146,7 @@ Respond in the format:
             code = matches[-1].strip()
         else:
             code = "# Could not extract code from output"
-        # print("IN CODE WITH EXAMPLE AGENT UPDATE_FROM_MODEL, CODE: {}".format(code))
+        print("IN CODE WITH EXAMPLE AGENT UPDATE_FROM_MODEL, CODE: {}".format(code))
         
         self.current_action = code
         return self.current_action
@@ -191,9 +191,6 @@ Respond in the format:
                 env_data.done = True
             else:
                 self.success = False
-            
-            # Share success status with example agent
-            env_data.state.example_agent_success = self.success
         
         # Store the raw test pass ratio (before applying conditioning penalty)
         env_data.state.raw_test_pass_ratio = passed_ratio
@@ -205,7 +202,10 @@ Respond in the format:
         used_example = getattr(env_data.state, "code_used_example", False)
         
         if not used_example:
-            self.agent_reward = 0.0
+            # self.agent_reward = 0.0
+            # FOR DEBUGGING ONLY #
+            self.agent_reward = raw_test_pass_ratio
+            ##########################################################
             # env_data.state.example_agent_reward = 0.0
             # logger.info(f"Rollout {self.rollout_idx}: Conditioned on example → reward = 0.0")
         else:

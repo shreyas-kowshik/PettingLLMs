@@ -1,0 +1,5 @@
+# Simple program that adds two numbers
+a = int(input())
+b = int(input())
+print(a + b)
+

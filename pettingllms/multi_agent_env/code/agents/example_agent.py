@@ -93,7 +93,7 @@ Structure your response with the following sections:
 Example:
 """
         
-        # print("IN EXAMPLE AGENT UPDATE_FROM_ENV, FORMATTED PROMPT: {}".format(formatted_prompt))
+        print("IN EXAMPLE AGENT UPDATE_FROM_ENV, FORMATTED PROMPT: {}".format(formatted_prompt))
 
         self.current_prompt = {"text": formatted_prompt, "image": None}
 
@@ -104,7 +104,7 @@ Example:
         The example is just stored as-is (raw text).
         """
         # Store the entire response as the example
-        # print("IN EXAMPLE AGENT UPDATE_FROM_MODEL, RESPONSE: {}".format(response))
+        print("IN EXAMPLE AGENT UPDATE_FROM_MODEL, RESPONSE: {}".format(response))
 
         self.current_action = response.strip()
         return self.current_action
@@ -125,8 +125,7 @@ Example:
         
         # This agent has no intrinsic success criterion
         # Success is determined by the downstream code agent
-        # Will be updated after code agent completes
-        self.success = False  # Default, will be set by calculate_reward()
+        self.success = False
 
     def calculate_reward(self, env_data: Env):
         """
@@ -151,14 +150,6 @@ Example:
         # Get information from env state to get reward
         used_example = getattr(env_data.state, "code_used_example", False)
         raw_test_pass_ratio = getattr(env_data.state, "raw_test_pass_ratio", 0.0)
-        
-        # Read shared success status from environment state
-        # This ensures both agents have the same success rate
-        if hasattr(env_data.state, "example_agent_success"):
-            self.success = env_data.state.example_agent_success
-        else:
-            self.success = False  # Fallback if not set yet
-        
         if not used_example:
             self.agent_reward = 0.0
         else:

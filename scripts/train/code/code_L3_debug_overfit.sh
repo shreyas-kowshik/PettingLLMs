@@ -92,11 +92,11 @@ python3 -m pettingllms.trainer.train \
     training.train_batch_size=1 \
     training.val_batch_size=1 \
     training.train_sample_num=4 \
-    training.validate_sample_num=1 \
+    training.validate_sample_num=4 \
     training.max_prompt_length=2048 \
     training.max_response_length=1024 \
     training.val_freq=10 \
-    training.resample_freq=1 \
+    training.resample_freq=3 \
     training.num_workers=100 \
     env.dataset=apps_debug_overfit \
     env.benchmark=apps_debug_overfit \

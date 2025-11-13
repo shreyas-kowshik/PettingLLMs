@@ -1,0 +1,5 @@
+# Code with a bug - will fail some tests
+a = int(input())
+b = int(input())
+print(a * b)  # Wrong operation - multiplies instead of adds
+
