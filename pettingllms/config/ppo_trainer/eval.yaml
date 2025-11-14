@@ -154,7 +154,7 @@ actor_rollout_ref:
     # for hf rollout
     do_sample: True
     # number of responses (i.e. num sample times)
-    n: 5 # > 1 for grpo # TODO: UPDATE IN FUTURE
+    n: 10 # > 1 for grpo # TODO: UPDATE IN FUTURE
     engine_kwargs: # inference engine parameters
       vllm:
         swap_space: null # null means "use the engine default value" (usually 4 GB), setting it to, e.g., 32 means 32 GB
@@ -361,11 +361,11 @@ algorithm:
   gamma: 1.0
   lam: 1.0
   norm_adv_by_std_in_grpo: True
-  use_kl_in_reward: False
+  use_kl_in_reward: True
   kl_penalty: kl  # how to estimate kl divergence
   kl_ctrl:
     type: fixed
-    kl_coef: 0.001
+    kl_coef: 0.00001
     horizon: 10000
     target_kl: 0.1
   use_pf_ppo: False
@@ -406,7 +406,7 @@ trainer:
   npu_profile:
     options: {}
   # RLLM arguments
-  rejection_sample: False # Reject sample prompts that all succeed or all fail (0 signal for GRPO due to normalization).
+  rejection_sample: True # Reject sample prompts that all succeed or all fail (0 signal for GRPO due to normalization).
   rejection_sample_multiplier: 2 # Multiple the training batch size by this factor to account for rejection sampling reduction.
   n_training_gpus_per_node: 4 # For verl-pipeline. 使用4个可见GPU
 

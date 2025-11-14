@@ -368,13 +368,52 @@ class MultiAgentsPPOTrainer:
                     all_actor_metrics = []
                     for agent_name, agent_batch in agent_batch_dict.items():
                         colorful_print(f"Updating LoRA for agent: {agent_name}", "green")
+                        
+                        # Get parameter norm before update (if available from previous step)
+                        param_norm_before = None
+                        if hasattr(self, '_last_param_norm'):
+                            param_norm_before = self._last_param_norm.get(agent_name)
+                            if param_norm_before is not None:
+                                colorful_print(f"[DEBUG] Parameter norm BEFORE update (agent {agent_name}): {param_norm_before:.6f}", "yellow")
+                        
                         agent_output = ppo_trainer.actor_rollout_wg.update_actor(agent_batch)
                         all_actor_metrics.append(agent_output.meta_info["metrics"])
+                        
+                        # Log parameter norm after update
+                        param_norm_after = agent_output.meta_info["metrics"].get("actor/param_norm")
+                        if param_norm_after is not None:
+                            if not hasattr(self, '_last_param_norm'):
+                                self._last_param_norm = {}
+                            self._last_param_norm[agent_name] = param_norm_after
+                            colorful_print(f"[DEBUG] Parameter norm AFTER update (agent {agent_name}): {param_norm_after:.6f}", "yellow")
+                            if param_norm_before is not None:
+                                param_norm_change = param_norm_after - param_norm_before
+                                pct_change = (param_norm_change / param_norm_before * 100) if param_norm_before > 0 else 0
+                                colorful_print(f"[DEBUG] Parameter norm CHANGE (agent {agent_name}): {param_norm_change:.6f} ({pct_change:.4f}%)", "yellow" if abs(param_norm_change) > 1e-6 else "red")
                     
                     actor_output_metrics = reduce_metrics(all_actor_metrics)
                 else:
+                    # Get parameter norm before update (if available from previous step)
+                    param_norm_before = None
+                    if hasattr(self, '_last_param_norm'):
+                        param_norm_before = self._last_param_norm.get('default')
+                        if param_norm_before is not None:
+                            colorful_print(f"[DEBUG] Parameter norm BEFORE update: {param_norm_before:.6f}", "yellow")
+                    
                     actor_output = ppo_trainer.actor_rollout_wg.update_actor(batch)
                     actor_output_metrics = reduce_metrics(actor_output.meta_info["metrics"])
+                    
+                    # Log parameter norm after update
+                    param_norm_after = actor_output_metrics.get("actor/param_norm")
+                    if param_norm_after is not None:
+                        if not hasattr(self, '_last_param_norm'):
+                            self._last_param_norm = {}
+                        self._last_param_norm['default'] = param_norm_after
+                        colorful_print(f"[DEBUG] Parameter norm AFTER update: {param_norm_after:.6f}", "yellow")
+                        if param_norm_before is not None:
+                            param_norm_change = param_norm_after - param_norm_before
+                            pct_change = (param_norm_change / param_norm_before * 100) if param_norm_before > 0 else 0
+                            colorful_print(f"[DEBUG] Parameter norm CHANGE: {param_norm_change:.6f} ({pct_change:.4f}%)", "yellow" if abs(param_norm_change) > 1e-6 else "red")
                 
             batch.meta_info["metrics"].update(actor_output_metrics)
 
@@ -728,6 +767,12 @@ class MultiAgentsPPOTrainer:
                 "training/global_step": self.global_steps,
                 
             })
+            
+            # Log parameter norm summary if available
+            param_norm_keys = [k for k in metrics.keys() if "param_norm" in k]
+            if param_norm_keys:
+                param_norm_summary = {k: metrics[k] for k in param_norm_keys}
+                colorful_print(f"[DEBUG] Parameter norm summary at step {self.global_steps}: {param_norm_summary}", "cyan")
 
             self.global_steps += 1
 

@@ -154,7 +154,7 @@ class CodeMBPPAgent(Agent):
         self.agent_reward = getattr(env_data.state, "mbpp_test_pass_ratio", 0.0)
         
         # BINARY 0/1 REWARD
-        if self.agent_reward >= 0.5:
+        if self.agent_reward >= 1.0:
             self.agent_reward = 1.0
         else:
             self.agent_reward = 0.0

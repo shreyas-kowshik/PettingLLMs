@@ -8,10 +8,10 @@ defaults:
   - _self_
 
 
-specialization: "prompt" # prompt, lora, full
+specialization: "full" # prompt, lora, full
 resource:
   nnodes: 1
-  n_gpus_per_node: 2
+  n_gpus_per_node: 1
   trust_remote_code: true
 
 # Environment configuration
@@ -100,6 +100,6 @@ models:
           n_training_gpus_per_node: ${resource.n_gpus_per_node}
         actor:
           optim:
-            lr: 5e-6
+            lr: 1e-4
 
 
