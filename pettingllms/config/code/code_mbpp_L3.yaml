@@ -1,0 +1,149 @@
+# Configuration for MBPP Example Agent + Code Agent Setup (L3 - Full Model Specialization)
+#
+# This configuration trains two agents with SEPARATE, INDEPENDENT models:
+# 1. Example Agent: Has its own model for generating solved examples
+# 2. Code Agent: Has its own model for generating code (with optional example conditioning)
+#
+# Reward Structure:
+# - If code agent conditions on example: Both agents get reward = 0
+# - If code agent does NOT condition: Both agents get reward = fraction of tests passed
+#
+# This encourages the code agent to solve problems independently.
+
+defaults:
+  - ../ppo_trainer@models.model_0.ppo_trainer_config: eval
+  - ../ppo_trainer@models.model_1.ppo_trainer_config: eval
+  - _self_
+
+
+specialization: "full"  # L3: Each agent has its own independent model
+resource:
+  nnodes: 1
+  n_gpus_per_node: 2  # 1 GPU per model
+  trust_remote_code: true
+
+# Environment configuration
+env:
+  name: code_env
+  dataset: "mbpp"  # MBPP dataset
+  benchmark: "mbpp"  # For validation
+  max_turns: 1  # Only ONE turn (example → code, done)
+  resolve: false
+  multi_modal: false
+  batched_init: true
+
+
+# Base model configuration - TWO separate models for L3
+base_models:
+  policy_0:
+    path: "Qwen/Qwen3-1.7B"  # Model for example agent
+    name: "example_generator_model"
+  policy_1:
+    path: "Qwen/Qwen3-1.7B"  # Model for code agent
+    name: "code_with_example_mbpp_model"
+
+
+# Agent configuration
+agent_policy_configs:
+  num_agents: 2
+  policy_list: ["example_generator", "code_with_example_mbpp"]
+  agent_configs:
+    # Example generation agent (acts first)
+    agent_0:
+      name: "example_generator"
+      policy_name: "example_generator_model"  # Must match base_models.policy_0.name
+      enable_thinking: false
+      train_temperature: 1.0
+      val_temperature: 0.6
+      
+    # Code generation agent (acts second, may or may not use example)
+    agent_1:
+      name: "code_with_example_mbpp"
+      policy_name: "code_with_example_mbpp_model"  # Must match base_models.policy_1.name
+      enable_thinking: false
+      train_temperature: 1.0
+      val_temperature: 0.6
+
+
+# Multi-agent interaction configuration
+multi_agent_interaction:
+  # Turn order: example agent first, then code agent
+  turn_order: ["example_generator", "code_with_example_mbpp"]
+  num_interacting_agents: 2
+
+
+# Training configuration
+training:
+  device: cuda
+  total_training_steps: 200
+  project_name: pettingllms
+  experiment_name: mbpp_L3_example
+  logger: ['console', 'wandb']
+  model_checkpoints_dir: checkpoints
+  ray_wait_register_center_timeout: 300
+  num_workers: 100  # Number of Ray docker workers for code execution
+  train_batch_size: 4
+  train_sample_num: 2  # Number of samples per problem
+  val_batch_size: 4
+  validate_sample_num: 2
+  sample_temperature: 1
+  val_freq: 10
+  resample_freq: 3
+  epoch_size: 20
+  max_prompt_length: 2048  # Longer to accommodate example text
+  max_response_length: 1024
+  lora_rank: 0  # Not used in full model specialization
+  lora_alpha: 0  # Not used in full model specialization
+
+
+# Model configuration - TWO separate models for L3
+models:
+  model_0:
+    path: ${base_models.policy_0.path}
+    name: ${base_models.policy_0.name}
+    ppo_trainer_config:
+      filter_method: mean
+      filter_ratio: 0.0 # Filters samples with reward below this
+      data:
+        max_prompt_length: ${training.max_prompt_length}
+        max_response_length: ${training.max_response_length}
+      actor_rollout_ref:
+        model:
+          path: ${base_models.policy_0.path}
+        rollout:
+          temperature: ${training.sample_temperature}
+          prompt_length: ${training.max_prompt_length}
+          response_length: ${training.max_response_length}
+          tensor_model_parallel_size: 1  # 1 GPU per model
+        trainer:
+          n_gpus_per_node: 1  # 1 GPU per model
+          n_training_gpus_per_node: 1
+        actor:
+          optim:
+            lr: 1e-7
+          
+  model_1:
+    path: ${base_models.policy_1.path}
+    name: ${base_models.policy_1.name}
+    ppo_trainer_config:
+      filter_method: mean
+      filter_ratio: 0.0 # Filters samples with reward below this 
+      data:
+        max_prompt_length: ${training.max_prompt_length}
+        max_response_length: ${training.max_response_length}
+      actor_rollout_ref:
+        model:
+          path: ${base_models.policy_1.path}
+        rollout:
+          temperature: ${training.sample_temperature}
+          prompt_length: ${training.max_prompt_length}
+          response_length: ${training.max_response_length}
+          tensor_model_parallel_size: 1  # 1 GPU per model
+        trainer:
+          n_gpus_per_node: 1  # 1 GPU per model
+          n_training_gpus_per_node: 1
+        actor:
+          optim:
+            lr: 1e-7
+
+

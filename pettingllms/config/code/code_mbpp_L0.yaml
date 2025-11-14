@@ -1,0 +1,105 @@
+# Configuration for MBPP Single Agent Setup (L0 - GRPO Training)
+#
+# This configuration trains a single agent using GRPO for MBPP dataset.
+# The agent generates code without using examples.
+
+defaults:
+  - ../ppo_trainer@models.model_0.ppo_trainer_config: eval
+  - _self_
+
+
+specialization: "prompt" # prompt, lora, full
+resource:
+  nnodes: 1
+  n_gpus_per_node: 2
+  trust_remote_code: true
+
+# Environment configuration
+env:
+  name: code_env
+  dataset: "mbpp"  # MBPP dataset
+  benchmark: "mbpp"  # For validation
+  max_turns: 1  # Single turn (code generation, done)
+  resolve: false
+  multi_modal: false
+  batched_init: true
+
+
+base_models:
+  policy_0:
+    path: "your base model path"
+    name: "code_mbpp_model"
+  
+
+# Multi-agent configuration for single agent
+agent_policy_configs:
+  # Number of agents to train
+  num_agents: 1
+  policy_list: ["code_mbpp"]
+  agent_configs:
+    agent_0:
+      name: "code_mbpp"
+      policy_name: "code_mbpp_model"
+      enable_thinking: false
+
+
+# Multi-agent interaction configuration
+multi_agent_interaction:
+  
+  # Turn order for agents (list of agent names)
+  turn_order: ["code_mbpp"]
+  
+  # Number of agents that interact per episode
+  num_interacting_agents: 1
+      
+
+
+training:
+  device: cuda
+  total_training_steps: 200
+  project_name: pettingllms
+  experiment_name: mbpp_L0_single_agent
+  logger: [ 'console', 'wandb' ]
+  model_checkpoints_dir: checkpoints
+  ray_wait_register_center_timeout: 300
+  train_batch_size: 32
+  val_batch_size: 4
+  num_workers: 100  # Number of Ray docker workers for code execution
+  train_sample_num: 8
+  validate_sample_num: 1
+  sample_temperature: 1
+  val_freq: 10
+  resample_freq: 3
+  epoch_size: 20
+  max_prompt_length: 2048
+  max_response_length: 1024
+  lora_rank: ${lora_rank}
+  lora_alpha: ${lora_alpha}
+
+
+models:
+  model_0:
+    path: ${base_models.policy_0.path}
+    name: ${base_models.policy_0.name}
+    ppo_trainer_config:
+      filter_method: mean
+      filter_ratio: 0.0 # Filters samples with reward below this
+      data: 
+        max_prompt_length: ${training.max_prompt_length}
+        max_response_length: ${training.max_response_length}
+      actor_rollout_ref:
+        model:
+          path: ${base_models.policy_0.path}
+        rollout:
+          temperature: ${training.sample_temperature}
+          prompt_length: ${training.max_prompt_length}
+          response_length: ${training.max_response_length}
+          tensor_model_parallel_size: ${resource.n_gpus_per_node}
+        trainer:
+          n_gpus_per_node: ${resource.n_gpus_per_node}
+          n_training_gpus_per_node: ${resource.n_gpus_per_node}
+        actor:
+          optim:
+            lr: 5e-6
+
+

@@ -117,6 +117,10 @@ def _format_competition_problem(example: Dict, index: int, mode: str = "train") 
     """
     Format a competition problem example into a standardized dictionary.
     
+    Supports two dataset schemas:
+    1. APPS/CodeContests: question, test_input, test_output, solution
+    2. MBPP: prompt, reward_model (with ground_truth), extra_info
+    
     Args:
         example: Raw example from dataset
         index: Index of the example
@@ -126,28 +130,67 @@ def _format_competition_problem(example: Dict, index: int, mode: str = "train") 
         Formatted problem dictionary or None if invalid
     """
     try:
-        question = example.get("question", "")
-        test_input = example.get("test_input", "")
-        if len(test_input)>4:
-            test_input=test_input[:4]
-        test_output = example.get("test_output", "")
-        if len(test_output)>4:
-            test_output=test_output[:4]
-        if mode == "train":
-            solution = example.get("solution", "")
-        else:  # validation mode
-            solution = example.get("solution", "")
-        
-        if not question or not test_input or not test_output:
-            print(f"Warning: Skipping example {index}: missing required fields")
-            return None
-        
-        return {
-            "question": question,
-            "test_input": test_input,
-            "test_output": test_output,
-            "solution": solution
-        }
+        # Check if this is MBPP format (has 'prompt' and 'reward_model' keys)
+        if "prompt" in example and "reward_model" in example:
+            # MBPP format
+            question = example.get("prompt", "")
+            reward_model = example.get("reward_model", {})
+            extra_info = example.get("extra_info", {})
+            
+            # Extract ground_truth test cases from reward_model
+            if isinstance(reward_model, dict):
+                ground_truth = reward_model.get("ground_truth", [])
+            elif isinstance(reward_model, list):
+                # If reward_model is directly a list of test cases
+                ground_truth = reward_model
+            else:
+                ground_truth = []
+            
+            # Extract setup from extra_info
+            setup = ""
+            if isinstance(extra_info, dict):
+                setup = extra_info.get("setup", "")
+            
+            if not question or not ground_truth:
+                print(f"Warning: Skipping MBPP example {index}: missing required fields")
+                return None
+            
+            # For MBPP, we store ground_truth as a list of test assertions
+            # and use empty lists for test_input/test_output (not used for MBPP)
+            return {
+                "question": question,
+                "test_input": [],  # Not used for MBPP
+                "test_output": [],  # Not used for MBPP
+                "solution": "",  # MBPP doesn't provide solutions
+                "ground_truth": ground_truth,  # List of test assertions
+                "setup": setup,  # Setup code if any
+                "data_source": example.get("data_source", "mbpp"),
+                "extra_info": extra_info
+            }
+        else:
+            # APPS/CodeContests format
+            question = example.get("question", "")
+            test_input = example.get("test_input", "")
+            if len(test_input)>4:
+                test_input=test_input[:4]
+            test_output = example.get("test_output", "")
+            if len(test_output)>4:
+                test_output=test_output[:4]
+            if mode == "train":
+                solution = example.get("solution", "")
+            else:  # validation mode
+                solution = example.get("solution", "")
+            
+            if not question or not test_input or not test_output:
+                print(f"Warning: Skipping example {index}: missing required fields")
+                return None
+            
+            return {
+                "question": question,
+                "test_input": test_input,
+                "test_output": test_output,
+                "solution": solution
+            }
         
     except Exception as e:
         print(f"Warning: Error formatting example {index}: {e}")
@@ -392,3 +435,101 @@ def extract_code_from_response(response: str) -> str:
     
     # If no code block found, return entire response
     return response.strip()
+
+
+# =================== MBPP reward computation ===================
+
+def compute_mbpp_reward_fraction(code: str, tests: List[str], setup: str = "") -> float:
+    """
+    Compute MBPP reward as fraction of test cases passed.
+    
+    Uses the MBPP reward computation logic from ref/mbpp_reward.py
+    but returns fraction of tests passed instead of binary result.
+    
+    Args:
+        code: Generated Python code
+        tests: List of test assertion strings
+        setup: Optional setup code
+        
+    Returns:
+        Fraction of tests passed (0.0 to 1.0)
+    """
+    import sys
+    import subprocess
+    import textwrap
+    
+    if not tests:
+        return 0.0
+    
+    # Import MBPP reward functions
+    ref_dir = Path(__file__).parent.parent.parent.parent / "ref"
+    sys.path.insert(0, str(ref_dir))
+    
+    try:
+        from mbpp_reward import (
+            extract_code_from_markdown,
+            fix_function_name,
+        )
+    except ImportError:
+        # Fallback implementations
+        def extract_code_from_markdown(text: str) -> str:
+            pattern = r'```python\s*\n(.*?)\n\s*```'
+            match = re.search(pattern, text, re.DOTALL)
+            if match:
+                return textwrap.dedent(match.group(1)).strip()
+            pattern = r'```\s*\n(.*?)\n\s*```'
+            match = re.search(pattern, text, re.DOTALL)
+            if match:
+                return textwrap.dedent(match.group(1)).strip()
+            return textwrap.dedent(text).strip()
+        
+        def extract_function_name_from_tests(tests: list) -> str:
+            for test in tests:
+                match = re.search(r'([a-zA-Z_][a-zA-Z0-9_]*)\s*\(', test)
+                if match:
+                    func_name = match.group(1)
+                    if func_name not in ['assert', 'if', 'for', 'while', 'def', 'class', 'return', 'print']:
+                        return func_name
+            return ""
+        
+        def extract_function_name_from_code(code: str) -> str:
+            match = re.search(r'def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(', code)
+            if match:
+                return match.group(1)
+            return ""
+        
+        def fix_function_name(code: str, tests: list) -> str:
+            expected_name = extract_function_name_from_tests(tests)
+            if not expected_name:
+                return code
+            actual_name = extract_function_name_from_code(code)
+            if not actual_name or actual_name == expected_name:
+                return code
+            pattern = r'\b' + re.escape(actual_name) + r'\b'
+            return re.sub(pattern, expected_name, code)
+    
+    # Clean and fix code
+    cleaned_code = extract_code_from_markdown(code)
+    cleaned_code = fix_function_name(cleaned_code, tests)
+    
+    # Run each test individually and count passes
+    passed = 0
+    total = len(tests)
+    
+    for test in tests:
+        try:
+            # Combine setup, code, and single test
+            full_code = (setup + "\n" if setup else "") + cleaned_code + "\n" + test
+            result = subprocess.run(
+                ["python", "-c", full_code],
+                capture_output=True,
+                text=True,
+                timeout=10.0
+            )
+            if result.returncode == 0:
+                passed += 1
+        except Exception as e:
+            # Test failed
+            continue
+    
+    return passed / total if total > 0 else 0.0

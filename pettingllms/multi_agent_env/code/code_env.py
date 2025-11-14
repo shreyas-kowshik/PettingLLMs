@@ -48,6 +48,10 @@ class CodeEnvState:
     raw_test_pass_ratio: float=0.0  # Raw test pass ratio before conditioning penalty
     example_agent_reward: float=0.0  # Reward for example agent (same as code agent)
     example_agent_success: bool=False  # Success status for example agent (same as code agent)
+    # Fields for MBPP dataset support
+    mbpp_ground_truth: List[str]=None  # List of test assertions for MBPP
+    mbpp_setup: str=""  # Setup code for MBPP tests
+    mbpp_test_pass_ratio: float=0.0  # Fraction of MBPP tests passed
 
 class CodeEnv(Env):
     """
@@ -101,6 +105,10 @@ class CodeEnv(Env):
         self.state.raw_test_pass_ratio=0.0
         self.state.example_agent_reward=0.0
         self.state.example_agent_success=False
+        # Reset MBPP-related fields
+        self.state.mbpp_ground_truth=None
+        self.state.mbpp_setup=""
+        self.state.mbpp_test_pass_ratio=0.0
 
 
 class CodeEnvBatch:
@@ -127,9 +135,23 @@ class CodeEnvBatch:
    
 
         for i,problem in enumerate(self.problem_list):
-            ground_truth_test_input=problem["test_input"]
-            ground_truth_test_output=problem["test_output"]
-            state=CodeEnvState(problem=problem["question"],ground_truth_test_input=ground_truth_test_input,ground_truth_test_output=ground_truth_test_output)
+            # Check if this is MBPP format
+            if "ground_truth" in problem:
+                # MBPP format
+                mbpp_ground_truth = problem.get("ground_truth", [])
+                mbpp_setup = problem.get("setup", "")
+                state = CodeEnvState(
+                    problem=problem["question"],
+                    ground_truth_test_input=[],  # Not used for MBPP
+                    ground_truth_test_output=[],  # Not used for MBPP
+                    mbpp_ground_truth=mbpp_ground_truth,
+                    mbpp_setup=mbpp_setup
+                )
+            else:
+                # APPS/CodeContests format
+                ground_truth_test_input=problem["test_input"]
+                ground_truth_test_output=problem["test_output"]
+                state=CodeEnvState(problem=problem["question"],ground_truth_test_input=ground_truth_test_input,ground_truth_test_output=ground_truth_test_output)
             for s in range(samples):
                 env=CodeEnv(env_idx=i, rollout_idx=rollout_idx_list[i*samples+s], max_turns=max_turns, config=None)
                 env.state=copy.deepcopy(state)

@@ -1,0 +1,10 @@
+def decode_list(lst):
+    result = []
+    for item in lst:
+        if isinstance(item, list) and len(item) == 2:
+            count, value = item
+            result.extend([value] * count)
+        else:
+            result.append(item)
+    return result
+
